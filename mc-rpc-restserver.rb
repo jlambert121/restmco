@@ -27,8 +27,8 @@ require 'cgi'
 include MCollective::RPC
 set :port, 4566
 
-uid = Etc.getpwnam("nobody").uid
-Process::Sys.setuid(uid)
+#uid = Etc.getpwnam("nobody").uid
+#Process::Sys.setuid(uid)
 
 # Examples :
 # get bash package status for two machines with the web class
@@ -37,12 +37,12 @@ Process::Sys.setuid(uid)
 # -Cclass_name : class filter
 # -Ihostname   : Identity filter
 # -Aagent_name : Agent filter
-# -L<n>		   : Limit the number of targets to <n>
+# -L<n>        : Limit the number of targets to <n>
 #
 # Examples:
-# 	http://localhost:4567/mco/find
+#         http://localhost:4567/mco/find
 # Finds all nodes
-# 
+#
 #   htp://localhost:4567/mco/find?-Cweb
 # Finds all nodes with the web class
 #
@@ -55,7 +55,7 @@ get '/' do
   "MCO Rest server\n"
 end
 
-helpers do      
+helpers do
   def request_params_repeats
     params = {}
     request.query_string.split('&').each do |pair|
@@ -66,89 +66,49 @@ helpers do
   end
 
   def process_args(mc)
-	rparams = request_params_repeats
-	arguments = {}
-	rparams.each_key do |key|
-		value = rparams[key]
-		if key.match("^-L")
-			filter = "#{key[2,key.length]}=#{value}"
-			puts "Applying limit targets #{value}"
-			mc.limit_targets="#{value}"
-		elsif key.match("^-F")
-			filter = "#{key[2,key.length]}=#{value}"
-			puts "Applying fact filter -F #{filter}"
-			mc.fact_filter "#{filter}"
-		elsif key.match("^-C")
-			filter = "#{key[2,key.length]}"
-			puts "Applying class filter -C #{filter}"
-			mc.class_filter "#{filter}"
-		elsif key.match("^-A")
-			filter = "#{key[2,key.length]}"
-			puts "Applying agent filter -A #{filter}"
-			mc.agent_filter "#{filter}"
-		elsif key.match("^-I")
-			filter = "#{key[2,key.length]}"
-			puts "Applying identity filter -I #{filter}"
-			mc.identity_filter "#{filter}"
-		else
-			arguments[key.to_sym] = value
-		end
-	end
-	arguments
+    rparams = request_params_repeats
+    arguments = {}
+    rparams.each_key do |key|
+      value = rparams[key]
+      if key.match("^-L")
+        puts "Applying limit targets -L #{value}"
+        mc.limit_targets=key[2,key.length].to_i
+      elsif key.match("^-F")
+        filter = "#{key[2,key.length]}=#{value}"
+        puts "Applying fact filter -F #{filter}"
+        mc.fact_filter "#{filter}"
+      elsif key.match("^-C")
+        filter = "#{key[2,key.length]}"
+        puts "Applying class filter -C #{filter}"
+        mc.class_filter "#{filter}"
+      elsif key.match("^-A")
+        filter = "#{key[2,key.length]}"
+        puts "Applying agent filter -A #{filter}"
+        mc.agent_filter "#{filter}"
+      elsif key.match("^-I")
+        filter = "#{key[2,key.length]}"
+        puts "Applying identity filter -I #{filter}"
+        mc.identity_filter "#{filter}"
+      else
+        arguments[key.to_sym] = value
+      end
+    end
+    arguments
   end
 end
 
-
 get '/mco/find' do
-	content_type :json
-	action = params[:action]
-	mc = rpcclient('rpcutil')
-	arguments = process_args(mc)
-	JSON.dump(mc.discover())
+  content_type :json
+  mc = rpcclient('rpcutil')
+  arguments = process_args(mc)
+  JSON.dump(mc.discover())
 end
 
 get '/mco/:agent/:action' do
-	content_type :json
-	agent = params[:agent]
-	action = params[:action]
-	mc = rpcclient(agent)
-	arguments = process_args(mc)
-	JSON.dump(mc.send(action,arguments).map{|r| r.results})
-end
-
-#deprecated, use above syntax
-get '/mcollective/:filters/:agent/:action/*' do
-    mc = rpcclient(params[:agent])
-    mc.discover
-
-    if params[:filters] && params[:filters] != 'no-filter' then
-	params[:filters].split(';').each do |filter|
-		name,value = $1, $2 if filter =~ /^(.+?)=(.+)$/
-		puts "#{name}: #{value}"
-        	if name == 'class_filter' then
-   			puts "Applying class_filter"
-        		mc.class_filter "/#{value}/"
-        	elsif name == 'fact_filter' then
-			puts "Applying fact_filter"
-                	mc.fact_filter "#{value}"
-        	elsif name == 'agent_filter' then
-			puts "Applying agent_filter"
-        	elsif name == 'limit_targets' then
-			puts "Applying limit_targets"
-        	elsif name == 'identity_filter' then
-			puts "Applying identity_filter"
-			mc.identity_filter "#{value}"
-		end
-    	end
-    end
-    arguments = {}
-    params[:splat].each do |arg|
-        arguments[$1.to_sym] = $2 if arg =~ /^(.+?)=(.+)$/
-    end
-
-    arguments.each do|name,value|
-    	puts "#{name}: #{value}"
-    end
-
-    JSON.dump(mc.send(params[:action], arguments).map{|r| r.results})
+  content_type :json
+  agent = params[:agent]
+  action = params[:action]
+  mc = rpcclient(agent)
+  arguments = process_args(mc)
+  JSON.dump(mc.send(action,arguments).map{|r| r.results})
 end
